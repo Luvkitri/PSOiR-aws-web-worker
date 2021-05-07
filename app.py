@@ -1,9 +1,12 @@
 import time
+
 import boto3
-from os import path
+from botocore.exceptions import ClientError
+from os import path, remove
 
 import threading
 from threading import Thread
+
 
 """
 Worker:​
@@ -50,9 +53,18 @@ class WorkerThread(Thread):
         words = file_content.split(" ")
         new_content = ""
 
+        print(words)
+
         for word in words:
-            word[0] = word[0].upper()
-            new_content += word
+            if word == "":
+                continue
+
+            if len(word) > 1:
+                edited_word = word[0].upper() + word[1:]
+            else:
+                edited_word = word[0].upper()
+
+            new_content += edited_word + " "
 
         return (
             "This file was edited using worker\n Each word in text starts with uppercase letter\n"
@@ -60,8 +72,10 @@ class WorkerThread(Thread):
         )
 
     def run(self):
+        print(f"Worker on {threading.current_thread().name} has started...")
+
         # Create a path for downloaded file
-        temp_file_path = "/tmp/" + path.basename(self.file_name)
+        temp_file_path = path.abspath("tmp/" + path.basename(self.file_name))
 
         # Download a file
         with open(temp_file_path, "wb") as f:
@@ -80,12 +94,14 @@ class WorkerThread(Thread):
             f.write(new_content)
 
         # Upload the file
-        edited_file_path = "edited/" + self.file_name
+        edited_file_path = "edited/" + path.basename(self.file_name)
 
         try:
-            response = s3.upload_file(temp_file_path, BUCKET_NAME, edited_file_path)
+            response = self.s3.upload_file(temp_file_path, S3_BUCKET_NAME, edited_file_path)
         except ClientError as e:
             print(e)
+
+        remove(temp_file_path)
 
         print(f"Worker on {threading.current_thread().name} has finished...")
         self.message.delete()
@@ -116,10 +132,10 @@ class SQSFetchThread(Thread):
                 # Print out the body and author (if set)
                 print(f"{message.body}")
                 worker = WorkerThread(message.body, message)
+                worker.start()
 
 
 def main():
-    print("Starting worker...")
     fetching_thread = SQSFetchThread()
     fetching_thread.start()
 
