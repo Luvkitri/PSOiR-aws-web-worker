@@ -5,9 +5,6 @@ Web worker for receiving and doing 'work' on messages from clients
 #! /bin/bash
 
 apt-get -y update \
-apt-get -y install python git \
+apt-get -y install python3 git \
 git clone https://github.com/Luvkitri/PSOiR-aws-web-worker.git \
-cd /PSOiR-aws-web-worker/ \
-pip install --user pipenv \
-pipenv install \
-pipenv run python app.py \
+cd /PSOiR-aws-web-worker/
